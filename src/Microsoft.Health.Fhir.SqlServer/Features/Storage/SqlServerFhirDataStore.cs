@@ -627,7 +627,8 @@ namespace Microsoft.Health.Fhir.SqlServer.Features.Storage
                     var inputsNoVersionForCheck = new List<ImportResource>();
                     foreach (var input in inputs)
                     {
-                        if (currentInDb.TryGetValue(input.ResourceWrapper.ToResourceKey(true), out var current) && input.ResourceWrapper.LastModified < current.LastModified)
+                        // Include inputs only with explicit lastUpdated (input.KeepLastUpdated = true)
+                        if (currentInDb.TryGetValue(input.ResourceWrapper.ToResourceKey(true), out var current) && input.KeepLastUpdated && input.ResourceWrapper.LastModified < current.LastModified)
                         {
                             inputsNoVersionForCheck.Add(input);
                         }
@@ -721,8 +722,12 @@ namespace Microsoft.Health.Fhir.SqlServer.Features.Storage
 
         public async Task<UpsertOutcome> UpsertAsync(ResourceWrapperOperation resource, CancellationToken cancellationToken)
         {
-            bool isBundleOperation = _bundleOrchestrator.IsEnabled && resource.BundleResourceContext != null;
-            if (isBundleOperation)
+            bool isBundleParallelOperation =
+                _bundleOrchestrator.IsEnabled &&
+                resource.BundleResourceContext != null &&
+                resource.BundleResourceContext.IsParallelBundle;
+
+            if (isBundleParallelOperation)
             {
                 IBundleOrchestratorOperation bundleOperation = _bundleOrchestrator.GetOperation(resource.BundleResourceContext.BundleOperationId);
                 return await bundleOperation.AppendResourceAsync(resource, this, cancellationToken).ConfigureAwait(false);

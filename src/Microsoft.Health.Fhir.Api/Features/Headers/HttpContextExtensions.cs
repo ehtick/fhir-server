@@ -9,10 +9,10 @@ using System.Linq;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 using Microsoft.Health.Fhir.Api.Features.Resources;
-using Microsoft.Health.Fhir.Api.Features.Resources.Bundle;
 using Microsoft.Health.Fhir.Core.Features;
 using Microsoft.Health.Fhir.Core.Features.Context;
 using Microsoft.Health.Fhir.Core.Features.Persistence.Orchestration;
+using Microsoft.Health.Fhir.Core.Models;
 
 namespace Microsoft.Health.Fhir.Api.Features.Headers
 {
@@ -46,6 +46,21 @@ namespace Microsoft.Health.Fhir.Api.Features.Headers
             }
 
             return defaultValue;
+        }
+
+        /// <summary>
+        /// Retrieves from the HTTP header information on using query caching.
+        /// </summary>
+        /// <param name="outerHttpContext">HTTP context</param>
+        /// <returns>Query cache header value</returns>
+        public static string GetQueryCache(this HttpContext outerHttpContext)
+        {
+            if (outerHttpContext != null && outerHttpContext.Request.Headers.TryGetValue(KnownHeaders.QueryCacheSetting, out StringValues headerValues))
+            {
+                return headerValues.FirstOrDefault();
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -109,6 +124,16 @@ namespace Microsoft.Health.Fhir.Api.Features.Headers
             }
 
             return requestContext.Properties.TryAdd(KnownQueryParameterNames.OptimizeConcurrency, true);
+        }
+
+        public static bool DecorateRequestContextWithQueryCache(this IFhirRequestContext requestContext, string value)
+        {
+            if (requestContext == null)
+            {
+                return false;
+            }
+
+            return requestContext.Properties.TryAdd(KnownQueryParameterNames.QueryCaching, value);
         }
     }
 }
